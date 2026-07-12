@@ -9,9 +9,10 @@ const messageSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    time: {
-        type: Date,
-        default: Date.now
+    status: {
+      type: String,
+      default: "sent", // By default message 'sent' (single tick) 
+      enum: ["sent", "delivered", "read"] 
     }
 },{timestamps: true});
 

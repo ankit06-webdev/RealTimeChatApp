@@ -10,7 +10,8 @@ function App() {
   const [username, setUsername] = useState("");
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
-
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [typingUser, setTypingUser] = useState("");
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom of chat history
@@ -40,14 +41,30 @@ function App() {
 
   // --- REAL-TIME LISTENERS ---
   useEffect(() => {
+
     const handleReceiveMessage = (data) => {
       setMessages((prev) => [...prev, data]);
     };
 
+    socket.on("online_users", (count) => {
+      setOnlineCount(count)
+    })
     socket.on("receive_message", handleReceiveMessage);
 
+    // listen for typing events
+    socket.on("user_typing", (user) => {
+      setTypingUser(user);
+    });
+
+    socket.on("user_stopped_typing", () => {
+      setTypingUser("");
+    });
+
     // Cleanup function
-    return () => socket.off("receive_message", handleReceiveMessage);
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("online_users")
+    }
   }, []);
 
   // --- ACTION HANDLERS ---
@@ -83,6 +100,16 @@ function App() {
     }
   };
 
+  const handleInputChange = (e) => {
+    setMessageInput(e.target.value);
+
+    socket.emit("typing", username);
+
+    setTimeout(() => {
+      socket.emit("stop_typing");
+    }, 2000);
+  };
+
   // --- UI RENDERING ---
   return (
     // Main Container
@@ -90,7 +117,11 @@ function App() {
 
       {/* 1. APP HEADER */}
       <header className="bg-[#075e54] text-white py-4 px-5 flex justify-between items-center">
-        <h2 className="m-0 text-xl font-semibold">Realtime Chat </h2>
+        <div className="flex gap-2 items-center">
+          <h2 className="m-0 text-xl font-semibold">Realtime Chat </h2>
+          <span>🟢 {onlineCount} Online</span>
+        </div>
+
         <span className=" flex justify-center items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-sm">
           <FaUser /> {username || "Guest"}
         </span>
@@ -99,53 +130,58 @@ function App() {
       {/* 2. CHAT HISTORY DISPLAY */}
       <div className="flex-1 p-5 overflow-y-auto flex flex-col gap-3">
         {messages.map((msg, index) => {
-  const isMe = msg.sender === username;
+          const isMe = msg.sender === username;
 
-  return (
-    // Message Row Alignment
-    <div
-      key={index}
-      className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
-    >
-      {/* Message Bubble (Timestamp ab iske andar aayega) */}
-      <div
-        className={`max-w-[70%] px-4 py-2 shadow-sm flex flex-col ${isMe
-            ? "bg-[#dcf8c6] rounded-t-lg rounded-bl-lg rounded-br-none"
-            : "bg-white rounded-t-lg rounded-br-lg rounded-bl-none"
-          }`}
-      >
-        {/* Sender Name (Hidden for your own messages) */}
-        {!isMe && (
-          <div className="text-[11px] font-bold text-[#075e54] mb-1">
-            {msg.sender}
-          </div>
-        )}
-        
-        {/* Message Text */}
-        <div className="text-sm text-gray-800 break-words">
-          {msg.message}
-        </div>
+          return (
+            // Message Row Alignment
+            <div
+              key={index}
+              className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
+            >
+              {/* Message Bubble (Timestamp ab iske andar aayega) */}
+              <div
+                className={`max-w-[70%] px-4 py-2 shadow-sm flex flex-col ${isMe
+                  ? "bg-[#dcf8c6] rounded-t-lg rounded-bl-lg rounded-br-none"
+                  : "bg-white rounded-t-lg rounded-br-lg rounded-bl-none"
+                  }`}
+              >
+                {/* Sender Name (Hidden for your own messages) */}
+                {!isMe && (
+                  <div className="text-[11px] font-bold text-[#075e54] mb-1">
+                    {msg.sender}
+                  </div>
+                )}
 
-        {/* Timestamp (Bubble ke andar, Right aligned) */}
-        <div className="text-[10px] text-gray-500 text-right mt-1">
-          {msg.createdAt 
-            ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        </div>
-      </div>
-    </div>
-  );
-})}
+                {/* Message Text */}
+                <div className="text-sm text-gray-800 break-words">
+                  {msg.message}
+                </div>
+
+                {/* Timestamp (Bubble ke andar, Right aligned) */}
+                <div className="text-[10px] text-gray-500 text-right mt-1">
+                  {msg.createdAt
+                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  }
+                </div>
+              </div>
+            </div>
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
       {/* 3. MESSAGE INPUT AREA */}
       <div className="flex p-4 bg-gray-100 gap-3">
+        {typingUser && (
+          <div className="text-xs italic text-[#075e54] font-semibold px-2">
+            {typingUser} is typing...
+          </div>
+        )}
         <input
           type="text"
           value={messageInput}
-          onChange={(e) => setMessageInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyPress}
           placeholder="Type your message here..."
           className="flex-1 px-4 py-3 rounded-full border-none outline-none text-[15px] shadow-sm focus:ring-2 focus:ring-[#00bfa5] transition-all"
