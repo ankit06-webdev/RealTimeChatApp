@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { FaUser } from "react-icons/fa";
 
 // Initialize socket connection outside the component to prevent memory leaks
-const socket = io("http://localhost:5000");
+const socket = io("https://realtimechatapp-63kq.onrender.com");
 
 function App() {
   // --- STATE MANAGEMENT ---
@@ -30,7 +30,7 @@ function App() {
 
   // Fetch chat history from the backend database
   useEffect(() => {
-    fetch("http://localhost:5000/api/messages/history")
+    fetch("https://realtimechatapp-63kq.onrender.com/api/messages/history")
       .then((res) => res.json())
       .then((data) => {
         setMessages(data);
@@ -61,7 +61,7 @@ function App() {
 
     try {
       // 1. Save to Database
-      await fetch("http://localhost:5000/api/messages/send", {
+      await fetch("https://realtimechatapp-63kq.onrender.com/api/messages/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(messageData),
